@@ -39,7 +39,40 @@ async def read_item(item_id: str, q: Optional[str] = None, short: bool = False):
 
 
 @app.put("/items/{item_id}")
-async def upgrade_item(item_id: int, item: Item):
+async def upgrade_item(item_id: int,
+                       item: Item = Body(
+                           ...,
+                           examples={
+                               'normal': {
+                                   "summary": "A normal example",
+                                   "description": "A **normal** item works correctly.",
+                                   "value": {
+                                       "name": "Foo",
+                                       "description": "A very nice Item",
+                                       "price": 35.4,
+                                       "tax": 3.2,
+                                   },
+
+                               },
+                               'converted': {
+                                   "summary": "An example with converted data",
+                                   "description": "FastAPI can convert price `strings` to actual `numbers` automatically",
+                                   "value": {
+                                       "name": "Bar",
+                                       "price": "35.4",
+                                   },
+                               },
+                               "invalid": {
+                                   "summary": "Invalid data is rejected with an error",
+                                   "value": {
+                                       "name": "Baz",
+                                       "price": "thirty five point four",
+                                   },
+                               },
+                           },
+
+                       ),
+                       ):
     results = {'item_id': item_id, 'item': item}
     return results
 
@@ -52,4 +85,3 @@ async def create_offer(offer: Offer):
 @app.post('/images/multiple/')
 async def create_multiple_images(images: list[Image]):
     return images
-
