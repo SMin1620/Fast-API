@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Query, Body
 from typing import Optional
 
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, EmailStr
 
 
 class Image(BaseModel):
@@ -13,9 +13,8 @@ class Item(BaseModel):
     name: str
     description: str | None = None
     price: float
-    tax: float | None = None
-    tags: list[str] = set()
-    image: list[Image] | None = None
+    tax: float = 10.5
+    tags: list[str] = []
 
 
 class Offer(BaseModel):
@@ -25,10 +24,31 @@ class Offer(BaseModel):
     items: list[Item]
 
 
+# UserIn 모델은 response body로 들어오며 새로운 유저를 만들기 위한 폼이다.
+class UserIn(BaseModel):
+    username: str
+    password: str
+    email: EmailStr
+    full_name: str | None = None
+
+
+# UserOut 모델은 생성된 유저에 대한 정보를 다시 클라이언트에게 보내게 되는 모델이다.
+class UserOut(BaseModel):
+    username: str
+    email: EmailStr
+    full_name: str | None = None
+
+
 app = FastAPI()
 
 
-@app.get('/items')
+# UserIn 모델을 생성하면, UserOut 모델의 필드만 값이 전달. (패스워드는 비밀 보장)
+@app.post('/user', response_model=UserOut)
+async def create_user(user: UserIn):
+    return user
+
+
+@app.get('/items', response_model=Item)
 async def read_item(item_id: str, q: Optional[str] = None, short: bool = False):
     item = {'item_id': item_id}
     if q:
@@ -38,43 +58,16 @@ async def read_item(item_id: str, q: Optional[str] = None, short: bool = False):
     return item
 
 
-@app.put("/items/{item_id}")
-async def upgrade_item(item_id: int,
-                       item: Item = Body(
-                           ...,
-                           examples={
-                               'normal': {
-                                   "summary": "A normal example",
-                                   "description": "A **normal** item works correctly.",
-                                   "value": {
-                                       "name": "Foo",
-                                       "description": "A very nice Item",
-                                       "price": 35.4,
-                                       "tax": 3.2,
-                                   },
+items = {
+    "foo": {"name": "Foo", "price": 50.2},
+    "bar": {"name": "Bar", "description": "The bartenders", "price": 62, "tax": 20.2},
+    "baz": {"name": "Baz", "description": None, "price": 50.2, "tax": 10.5, "tags": []},
+}
 
-                               },
-                               'converted': {
-                                   "summary": "An example with converted data",
-                                   "description": "FastAPI can convert price `strings` to actual `numbers` automatically",
-                                   "value": {
-                                       "name": "Bar",
-                                       "price": "35.4",
-                                   },
-                               },
-                               "invalid": {
-                                   "summary": "Invalid data is rejected with an error",
-                                   "value": {
-                                       "name": "Baz",
-                                       "price": "thirty five point four",
-                                   },
-                               },
-                           },
 
-                       ),
-                       ):
-    results = {'item_id': item_id, 'item': item}
-    return results
+@app.get("/items/{item_id}", response_model=Item, response_model_exclude_unset=True)
+async def read_item_id(item_id: str):
+    return items[item_id]
 
 
 @app.post('/offer')
